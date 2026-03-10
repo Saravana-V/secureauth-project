@@ -1,0 +1,9 @@
+<!-- templates/login_success.html -->
+{% extends "base.html" %}
+{% block content %}
+<div class="text-center">
+    <h2>Welcome, {{ username }} 👋</h2>
+    <p>You have successfully logged in with SecureAuth!</p>
+    <a class="btn btn-outline-primary mt-3" href="{{ url_for('auth.register') }}">Log Out / Register Another</a>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Your Cart</h2>
+{% if cart and cart|length > 0 %}
+  <table class="table table-bordered align-middle mt-4">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Image</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Subtotal</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in cart %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td><img src="{{ url_for('static', filename='images/' + item.image_url) }}" alt="{{ item.name }}" style="height:50px;"></td>
+        <td>₹{{ item.price }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('shop.update_cart') }}" class="d-inline">
+            <input type="hidden" name="product_id" value="{{ item.product_id }}">
+            <input type="number" name="quantity" value="{{ item.quantity }}" min="1" style="width:60px;">
+            <button type="submit" class="btn btn-sm btn-primary">Update</button>
+          </form>
+        </td>
+        <td>₹{{ item.price * item.quantity }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('shop.remove_from_cart') }}" class="d-inline">
+            <input type="hidden" name="product_id" value="{{ item.product_id }}">
+            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="text-end">
+    <h4>Total: ₹{{ total }}</h4>
+    <a href="{{ url_for('shop.checkout') }}" class="btn btn-success">Proceed to Checkout</a>
+  </div>
+{% else %}
+  <p class="text-muted">Your cart is empty.</p>
+{% endif %}
+{% endblock %}
