@@ -11,35 +11,63 @@
   <!-- Amazon-style Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary py-2">
     <div class="container-fluid">
-      <a class="navbar-brand fw-bold" href="{{ url_for('home') }}">
-        <span style="font-size:1.5rem;">&#128722; SecureShop</span>
+      <a class="navbar-brand fw-bold" href="{{ url_for('shop.shop') }}">
+        <span style="font-size:1.5rem;">🛍️ SecureShop</span>
       </a>
-      <form class="d-flex mx-auto w-50" role="search">
-        <input class="form-control me-2" type="search" placeholder="Search products..." aria-label="Search">
+      <!-- Search Bar -->
+      <form class="d-flex mx-auto w-50" method="POST" action="{{ url_for('shop.search') }}" role="search">
+        <input class="form-control me-2" type="search" name="query" placeholder="Search products..." aria-label="Search" required>
         <button class="btn btn-warning" type="submit">Search</button>
       </form>
-      <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
-        <li class="nav-item mx-2">
-          <a class="nav-link text-white" href="#">Orders</a>
-        </li>
-        <li class="nav-item mx-2">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-center">
+          <!-- Home Button -->
+          <li class="nav-item mx-2">
+            <a class="nav-link text-white" href="{{ url_for('shop.shop') }}">🏠 Home</a>
+          </li>
+
           {% if name %}
-            <a class="nav-link text-white" href="#">Hello, {{ name }}</a>
+            <!-- Orders Link -->
+            <li class="nav-item mx-2">
+              <a class="nav-link text-white" href="{{ url_for('shop.orders_history') }}">📦 Orders</a>
+            </li>
+            
+            <!-- Profile Dropdown -->
+            <li class="nav-item dropdown mx-2">
+              <a class="nav-link text-white dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                👤 Hello, {{ name }}
+              </a>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{{ url_for('shop.profile') }}">📋 View Profile</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('shop.profile') }}">✏️ Update Profile</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('shop.orders_history') }}">📜 Order History</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{{ url_for('shop.signout') }}">🚪 Sign Out</a></li>
+              </ul>
+            </li>
           {% else %}
-            <a class="nav-link text-white" href="{{ url_for('auth.login') }}">Sign In</a>
+            <!-- Sign In Link -->
+            <li class="nav-item mx-2">
+              <a class="nav-link text-white" href="{{ url_for('auth.login') }}">🔐 Sign In</a>
+            </li>
           {% endif %}
-        </li>
-        <li class="nav-item mx-2">
-          <a class="nav-link text-white position-relative" href="{{ url_for('shop.cart') }}">
-            <span style="font-size:1.3rem;">&#128722;</span>
-            {% if session.cart %}
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">{{ session.cart|length }}</span>
-            {% else %}
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">0</span>
-            {% endif %}
-          </a>
-        </li>
-      </ul>
+
+          <!-- Shopping Cart -->
+          <li class="nav-item mx-2">
+            <a class="nav-link text-white position-relative" href="{{ url_for('shop.cart') }}" title="Shopping Cart">
+              <span style="font-size:1.3rem;">🛒</span>
+              {% if session.cart %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ session.cart|length }}</span>
+              {% else %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-secondary">0</span>
+              {% endif %}
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
   </nav>
   <!-- Hero/banner section -->

@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database.db import users_collection
+from database.db import mongo
 from bson.objectid import ObjectId
 from flask import Blueprint, render_template, request, redirect, session, url_for
 
@@ -12,11 +12,11 @@ def register():
     if request.method == 'POST':
         name = request.form['name']
         email = request.form['email']
-        user = users_collection.find_one({'email': email})
+        user = mongo.db.secureauth.find_one({'email': email})
         if user:
             flash('User already exists.', 'danger')
             return redirect(url_for('auth.register'))
-        users_collection.insert_one({'name': name, 'email': email})
+        mongo.db.secureauth.insert_one({'name': name, 'email': email})
         flash('Registration successful! Login now.', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html')
@@ -25,11 +25,11 @@ def register():
 def login():
     if request.method == 'POST':
         email = request.form['email']
-        user = users_collection.find_one({'email': email})
+        user = mongo.db.secureauth.find_one({'email': email})
         if user:
             # Generate OTP
             import random, datetime
-            from database.db import mongo
+            # `mongo` already imported at module level
             otp = str(random.randint(100000, 999999))
             mongo.db.secureauth.delete_many({'email': email})  # Clean old OTPs
             mongo.db.secureauth.insert_one({
@@ -58,11 +58,28 @@ def verify():
     if request.method == 'POST':
         email = request.form.get('email') or session.get('login_email')
         entered_otp = request.form['otp']
-        from database.db import mongo
+        # `mongo` imported globally earlier
         import datetime
         user = mongo.db.secureauth.find_one({'email': email})
         if user and user['otp'] == entered_otp and (datetime.datetime.now() - user['created_at']).seconds <= 300:
-            session['user_id'] = str(user.get('_id', ''))
+            # Save/update user in users collection for persistent storage
+            user_data = {
+                'name': user.get('name', ''),
+                'email': email,
+                'verified_at': datetime.datetime.now(),
+                'cart': [],
+                'address': '',
+                'phone': ''
+            }
+            # Upsert: update if exists, insert if not
+            result = mongo.db.users.update_one(
+                {'email': email},
+                {'$set': user_data},
+                upsert=True
+            )
+            # Get the user ID (either newly created or existing)
+            user_in_db = mongo.db.users.find_one({'email': email})
+            session['user_id'] = str(user_in_db.get('_id', ''))
             session['user_name'] = user.get('name', '')
             flash('✅ OTP Verified! Welcome.', 'success')
             return redirect(url_for('shop.shop'))

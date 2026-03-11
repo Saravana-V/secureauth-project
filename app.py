@@ -5,7 +5,7 @@ import smtplib
 import ssl
 from flask import Flask, render_template, request, redirect, url_for, flash, Response, session
 from dotenv import load_dotenv
-from database.db import users_collection, mongo  # ✅ Correctly importing both
+from database.db import init_db, mongo
 
 from routes import auth_bp, shop_bp  # ✅ Direct import of blueprints
 
@@ -17,12 +17,29 @@ app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'change_this_in_production')
 
 # MongoDB setup
-app.config["MONGO_URI"] = "mongodb://localhost:27017/cyper"
-mongo.init_app(app)
+# app.config["MONGO_URI"] = "mongodb://localhost:27017/cyper"
+
+app.config["MONGO_URI"] = os.environ.get(
+    "MONGO_URI",
+    "mongodb://localhost:27017/cyper"
+)
+# Flask-PyMongo requires a default database name when the URI does not
+# include one.  The cluster connection string in .env currently lacks
+# a database path, so mongo.db would be None until this is provided.
+app.config["MONGO_DBNAME"] = os.environ.get("MONGO_DBNAME", "cyper")
+
+
+init_db(app)
 
 # Register blueprints (ONLY ONCE)
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(shop_bp, url_prefix='/shop')
+
+# ------------------- Context Processor -------------------
+# Make user_name available to all templates automatically
+@app.context_processor
+def inject_user():
+    return {'name': session.get('user_name', None)}
 
 # ------------------- Helper Functions -------------------
 
@@ -125,9 +142,10 @@ def login_success():
 
 # ------------------- Run App -------------------
 
-# if __name__ == '__main__':
-#     app.run(debug=True)
+if __name__ == '__main__':
+    app.run(debug=True)
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+
+# if __name__ == "__main__":
+#     port = int(os.environ.get("PORT", 10000))
+#     app.run(host="0.0.0.0", port=port)

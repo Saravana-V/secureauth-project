@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from database.db import mongo
 from bson.objectid import ObjectId
+import datetime
 
 shop_bp = Blueprint('shop', __name__)
 
@@ -80,9 +81,9 @@ def cart():
     if 'user_id' not in session:
         flash('Please log in to view your cart.', 'warning')
         return redirect(url_for('auth.login'))
-    cart = session.get('cart', [])
-    total = sum(item['price'] * item['quantity'] for item in cart)
-    return render_template('cart.html', cart=cart, total=total)
+    cart_items = session.get('cart', [])
+    total = sum(item['price'] * item['quantity'] for item in cart_items)
+    return render_template('cart.html', cart=cart_items, total=total, name=session.get('user_name'))
 
 @shop_bp.route('/update-cart', methods=['POST'])
 def update_cart():
@@ -136,12 +137,23 @@ def profile():
                 'phone': phone
             }}
         )
+        session['user_name'] = name  # Update session as well
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('shop.profile'))
 
-    # Fetch user's purchase history
-    purchases = list(mongo.db.purchases.find({'user_id': user_id}))
-    return render_template('profile.html', user=user, purchases=purchases)
+    # Fetch user's order history
+    orders = list(mongo.db.orders.find({'user_id': user_id}).sort('created_at', -1))
+    return render_template('profile.html', user=user, orders=orders, name=session.get('user_name'))
+
+@shop_bp.route('/orders')
+def orders_history():
+    if 'user_id' not in session:
+        flash('Please log in to view your orders.', 'warning')
+        return redirect(url_for('auth.login'))
+    
+    user_id = session['user_id']
+    orders = list(mongo.db.orders.find({'user_id': user_id}).sort('created_at', -1))
+    return render_template('orders.html', orders=orders, name=session.get('user_name'))
 
 @shop_bp.route('/checkout', methods=['GET', 'POST'])
 def checkout():
@@ -159,26 +171,67 @@ def checkout():
         state = request.form['state']
         zip_code = request.form['zip']
         phone = request.form['phone']
+        
         # Store order in orders collection
-        order = {
+        order_doc = {
             'user_id': session['user_id'],
-            'items': cart,
+            'user_name': session.get('user_name', 'User'),
+            'products': cart,
             'total': total,
             'address': address,
             'city': city,
             'state': state,
             'zip': zip_code,
             'phone': phone,
-            'status': 'Placed'
+            'status': 'Placed',
+            'created_at': datetime.datetime.now()
         }
-        mongo.db.orders.insert_one(order)
+        result = mongo.db.orders.insert_one(order_doc)
+        order_id = result.inserted_id
+        
+        # Update user's address in database
+        mongo.db.users.update_one(
+            {'_id': ObjectId(session['user_id'])},
+            {'$set': {'address': address, 'phone': phone, 'city': city, 'state': state, 'zip': zip_code}}
+        )
+        
         session['cart'] = []  # Clear cart
         flash('Order placed successfully!', 'success')
-        return render_template('order_summary.html', order=order)
-    return render_template('checkout.html', cart=cart, total=total)
+        
+        # Pass the created order to template
+        return render_template('order_summary.html', order=order_doc, name=session.get('user_name'))
+    return render_template('checkout.html', cart=cart, total=total, name=session.get('user_name'))
 
 @shop_bp.route('/signout')
 def signout():
     session.clear()
     flash('👋 You have been signed out.', 'info')
     return redirect(url_for('shop.shop'))
+
+@shop_bp.route('/search', methods=['GET', 'POST'])
+def search():
+    query = request.form.get('query', '').strip() if request.method == 'POST' else request.args.get('query', '').strip()
+    
+    if not query:
+        flash('Please enter a search term.', 'warning')
+        return redirect(url_for('shop.shop'))
+    
+    # Search products by name or description using regex for case-insensitive search
+    import re
+    search_pattern = re.compile(query, re.IGNORECASE)
+    
+    products = list(mongo.db.products.find({
+        '$or': [
+            {'name': search_pattern},
+            {'description': search_pattern}
+        ]
+    }))
+    
+    if not products:
+        flash(f'No products found matching "{query}".', 'info')
+    
+    return render_template('search_results.html', 
+                         products=products, 
+                         query=query, 
+                         name=session.get('user_name'),
+                         result_count=len(products))
